@@ -6,19 +6,18 @@ import BleManager, { BleDisconnectPeripheralEvent, BleScanCallbackType, BleScanM
 
 import Sound from "react-native-sound";
 
-
 const BleManagerModule = NativeModules.BleManager;
 const bleManagerEmitter = new NativeEventEmitter(BleManagerModule);
 
 
-const LeftControl = ({ route, navigation }: { route: any, navigation: any }) => {
+const RightConnect = ({ route, navigation }: { route: any, navigation: any }) => {
 
-    var s1 = "";
+    var s = "";
 
-    const val = AsyncStorage.getItem("@app:id");
+    const val = AsyncStorage.getItem("@app:id2");
     val.then((val) => {
         console.log(val);
-        s1 += val;
+        s += val;
     })
 
     useEffect(() => {
@@ -26,8 +25,8 @@ const LeftControl = ({ route, navigation }: { route: any, navigation: any }) => 
 
         const getStoredDeviceID = async () => {
             try {
-                const storedDeviceID = await AsyncStorage.getItem("@app:id");
-                const storedName = await AsyncStorage.getItem("@app:name");
+                const storedDeviceID = await AsyncStorage.getItem("@app:id2");
+                const storedName = await AsyncStorage.getItem("@app:name2");
                 if (storedName) {
                     console.log(storedName)
                 }
@@ -38,11 +37,11 @@ const LeftControl = ({ route, navigation }: { route: any, navigation: any }) => 
                     console.log(isConnected);
 
                     if (!isConnected) {
-                        
+
                         connect(storedDeviceID);
                     }
                     else {
-                       
+
                         ToastAndroid.show("Still Connected", ToastAndroid.LONG);
                     }
                 }
@@ -239,7 +238,7 @@ const LeftControl = ({ route, navigation }: { route: any, navigation: any }) => 
                 break;
         }
 
-        BleManager.write(s1, "ffe0", "ffe1", data)
+        BleManager.write(s, "ffe0", "ffe1", data)
             .then(() => {
                 console.log("Data sended");
             })
@@ -248,12 +247,14 @@ const LeftControl = ({ route, navigation }: { route: any, navigation: any }) => 
             })
     }
 
+
+
     return (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
 
             <TouchableOpacity
                 style={{ width: '90%', backgroundColor: '#007bff', margin: 10, padding: 15, borderRadius: 20 }}
-                onPress={() => { connect(s1) }}
+                onPress={() => { connect(s) }}
             >
                 <Text style={{ color: "white", fontSize: 20, textAlign: 'center', fontFamily: 'Arial', }}>Connect</Text>
             </TouchableOpacity>
@@ -328,14 +329,14 @@ const LeftControl = ({ route, navigation }: { route: any, navigation: any }) => 
 
             <TouchableOpacity
                 style={{ width: '90%', backgroundColor: '#dc3545', margin: 10, padding: 15, borderRadius: 20 }}
-                onPress={() => { disconnect(s1) }}
+                onPress={() => { disconnect(s) }}
             >
                 <Text style={{ color: "white", fontSize: 20, textAlign: 'center', fontFamily: 'Arial', }}>Disconnect</Text>
             </TouchableOpacity>
 
-            
+
         </View>
-    );
+    )
 }
 
-export default LeftControl;
+export default RightConnect;

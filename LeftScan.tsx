@@ -33,7 +33,6 @@ export function LeftScan({ navigation }: { navigation: any }) {
         const AsyncData = () => {
             AsyncStorage.getItem("@app:id").then((val)=>{
                 console.log("Value is " , val);
-
                 if(val !== "null" && val !== null)
                 {
                     console.log(val);
@@ -45,10 +44,6 @@ export function LeftScan({ navigation }: { navigation: any }) {
         }
 
         AsyncData();
-
-
-
-
         const ble1 = bleManagerEmitter.addListener('BleManagerDiscoverPeripheral', handleDiscoverPeripheral);
 
         handlePermission();

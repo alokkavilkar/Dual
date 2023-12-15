@@ -6,6 +6,7 @@ import { Alert, Button, FlatList, PermissionsAndroid, Platform, Text, TouchableH
 import BleManager, { BleDisconnectPeripheralEvent, BleScanCallbackType, BleScanMatchMode, BleScanMode, Peripheral } from 'react-native-ble-manager'
 import { NativeEventEmitter, NativeModules } from "react-native";
 import { isLocationEnabled, promptForEnableLocationIfNeeded } from "react-native-android-location-enabler";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const BleManagerModule = NativeModules.BleManager;
 const bleManagerEmitter = new NativeEventEmitter(BleManagerModule);
@@ -153,7 +154,25 @@ export function RightScan({ navigation }: { navigation: any }) {
                     <TouchableHighlight
                         style={{ backgroundColor: 'lightgrey', borderRadius: 20 }}
                         underlayColor="#90EE90"
-                        onPress={() => { }}>
+                        onPress={() => { 
+                            
+                            navigation.navigate("Right Watch Connect", { id: item.item.id, name: item.item.name });
+
+                            if (item.item.id) {
+                                console.log("Data2 stored finally");
+                                AsyncStorage.setItem("@app:id2", item.item.id);
+                            }
+
+                            if(item.item.name)
+                            {
+                                console.log("Name2 stored");
+                                AsyncStorage.setItem("@app:name2", item.item.name);
+                                AsyncStorage.setItem("@app:myname2", item.item.name);
+                            }
+
+
+
+                        }}>
                         <View style={{ padding: 20 }}>
                             <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-between' }}>
                                 <Text style={{ fontSize: 20 }}>{item.item.advertising?.localName}</Text>
