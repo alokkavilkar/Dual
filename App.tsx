@@ -1,118 +1,155 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
+import React, { useEffect, useState } from "react";
+import { Alert, FlatList, NativeEventEmitter, NativeModules, PermissionsAndroid, Platform, Text, TouchableHighlight, TouchableOpacity, View } from "react-native";
+import BleManager, { BleDisconnectPeripheralEvent, BleScanCallbackType, BleScanMatchMode, BleScanMode, Peripheral } from 'react-native-ble-manager'
+import { isLocationEnabled, promptForEnableLocationIfNeeded } from "react-native-android-location-enabler";
 
-import React from 'react';
-import type {PropsWithChildren} from 'react';
-import {
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  useColorScheme,
-  View,
-} from 'react-native';
+const BleManagerModule = NativeModules.BleManager;
+const bleManagerEmitter = new NativeEventEmitter(BleManagerModule);
 
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
+const App = () => {
+  useEffect(() => {
+    BleManager.start({ showAlert: false });
 
-type SectionProps = PropsWithChildren<{
-  title: string;
-}>;
+    const ble1 = bleManagerEmitter.addListener('BleManagerDiscoverPeripheral', handleDiscoverPeripheral);
 
-function Section({children, title}: SectionProps): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-  return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
-    </View>
+    handlePermission();
+    console.log(Platform.Version);
+
+
+    return () => {
+      ble1.remove();
+    }
+  });
+
+  const [peripherals, setPeripherals] = useState(
+    new Map<Peripheral['id'], Peripheral>(),
   );
-}
+  const addOrUpdatePeripheral = (id: string, updatedPeripheral: Peripheral) => {
+    // console.log("Adding the peripherals.")
+    setPeripherals(map => new Map(map.set(id, updatedPeripheral)));
+  }
 
-function App(): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
+  const enableBLE = async () => {
+    console.log("Ble is starting the connection.");
+    try {
+      await BleManager.enableBluetooth();
+      console.log("Bluetooth enabled");
+      const checkEnabled: boolean = await isLocationEnabled();
+      console.log("checkEnabled" + checkEnabled);
+      if (checkEnabled === false) {
+        await promptForEnableLocationIfNeeded().then((val) => {
+          console.log("Location enabled.");
+        })
+          .catch((err) => {
+            console.log("Failed to to so...." + err);
+          })
+      }
+    }
+    catch (error) {
+      console.log("Error enabling bluetotth");
+      Alert.alert(
+        'Bluetooth permission required',
+        'Please enable Bluetooth permission',
+        [{ text: "Ok", onPress: () => console.log("Ok Pressed") }]
+      )
+    }
 
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
-  };
+  }
+  const startScan = () => {
+    console.log(BleManager.checkState().then((state) => {
+      console.log(state);
+    }))
+    setPeripherals(new Map<Peripheral['id'], Peripheral>());
+    try {
+      console.log("Scanning started");
+      BleManager.scan([], 5, true, { matchMode: BleScanMatchMode.Sticky, scanMode: BleScanMode.LowLatency, callbackType: BleScanCallbackType.AllMatches })
+        .then(() => {
+          console.log("Scanning succesfull");
+          // console.log(serivce_uid);
+        })
+        .catch((err) => {
+          console.log("Got erro while scanning.." + err);
+        })
+    }
+    catch (error) {
+      console.log("Scanning cannot be performed..." + error);
+    }
+  }
+  const handleDiscoverPeripheral = async (peripheral: Peripheral) => {
+    console.debug('[handleDiscoverPeripheral] new BLE peripheral= ', peripheral.name);
 
+    if (!peripheral) {
+      console.log("Please check with the location");
+    }
+
+    if (!peripheral.name) {
+      peripheral.name = 'No Name';
+    }
+    else {
+      // console.log("Peripherals" + peripheral.name);
+      addOrUpdatePeripheral(peripheral.id, peripheral);
+    }
+  }
+
+  const handlePermission = () => {
+    if (Platform.OS === 'android' && Platform.Version >= 31) {
+      PermissionsAndroid.requestMultiple(
+        [
+          PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
+          PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
+        ]
+      )
+        .then(val => {
+          if (val) {
+            console.debug("Permission for android 12+ accepted.");
+          } else {
+            console.log("Permission denied by the user.");
+          }
+        })
+    }
+    else if (Platform.OS == 'android' && Platform.Version >= 23) {
+      PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,)
+        .then((val) => {
+          if (val) {
+            console.log("User accepted permission");
+            // console.log(BleManager);
+          }
+          else {
+            console.log("user denied the permission");
+          }
+        })
+    }
+
+  }
   return (
-    <SafeAreaView style={backgroundStyle}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={backgroundStyle.backgroundColor}
+    <View>
+      <TouchableOpacity style={{ margin: 20, padding: 40 }} onPress={enableBLE}>
+        <Text>Click now</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={{ margin: 20, padding: 40 }} onPress={startScan}><Text>Click to scan</Text></TouchableOpacity>
+
+      <FlatList style={{ width: '90%' }}
+        data={Array.from(peripherals.values())}
+        contentContainerStyle={{ rowGap: 12 }}
+        keyExtractor={item => item.id}
+        renderItem={item => (
+          <TouchableHighlight
+            style={{ backgroundColor: 'lightgrey', borderRadius: 20 }}
+            underlayColor="#90EE90"
+            onPress={() => { }}>
+            <View style={{ padding: 20 }}>
+              <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ fontSize: 20 }}>{item.item.advertising?.localName}</Text>
+                <Text style={{ fontSize: 20 }}>{item.item.rssi}</Text>
+              </View>
+              <Text style={{ fontSize: 15 }}>{item.item.id}</Text>
+            </View>
+          </TouchableHighlight>
+        )}
       />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
-        <Header />
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
-        </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
+    </View>
+  )
 }
-
-const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
-  },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
-  },
-  highlight: {
-    fontWeight: '700',
-  },
-});
 
 export default App;
